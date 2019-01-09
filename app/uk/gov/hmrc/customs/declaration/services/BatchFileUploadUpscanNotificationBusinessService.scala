@@ -59,11 +59,20 @@ class BatchFileUploadUpscanNotificationBusinessService @Inject()(repo: BatchFile
     }
   }
 
-  //TODO MC POC only, remove it later
-  def callWorkItemService(ftr: FileTransmission)(implicit r: HasConversationId): Future[Unit] = {
+  //MC POC only
+  def storeWorkItemAndProcessLater(ftr: FileTransmission)(implicit r: HasConversationId): Future[Unit] = {
     val envelope = FileTransmissionEnvelope(ftr, Whatever(deliveryWindowDuration = None))
     workItemService.enqueue(envelope).map { _ =>
-      logger.info(s"successfully called work item service $ftr")
+      logger.debugWithoutRequestContext(s"POC => successfully stored work item $ftr")
+      ()
+    }
+  }
+
+  //PB POC only
+  def storeWorkItemAndProcessNow(ftr: FileTransmission)(implicit r: HasConversationId): Future[Unit] = {
+    val envelope = FileTransmissionEnvelope(ftr, Whatever(deliveryWindowDuration = None))
+    workItemService.enqueueAndProcess(envelope).map { _ =>
+      logger.debugWithoutRequestContext(s"POC => successfully stored and processed work item $ftr")
       ()
     }
   }

@@ -109,28 +109,36 @@ class BatchFileUploadUpscanNotificationController @Inject()(notificationService:
     }
   }
 
-  def dummy(): Action[AnyContent] = Action {
+  /**
+    * Demo endpoint for work-item-repo which stores work item which is then picked up by a poller.
+    * @return
+    */
+  def storeAndProcessLater(): Action[AnyContent] = Action {
 
     val request = Json.parse(fileTransmissionRequestJsonString(UUID.randomUUID().toString)).as[FileTransmission]
     val uuid: UUID = UUID.randomUUID()
 
-    val res = businessService.callWorkItemService(request)(new HasConversationId {
+    val res = businessService.storeWorkItemAndProcessLater(request)(new HasConversationId {
       override val conversationId: ConversationId = ConversationId(uuid)
     })
 
     Ok(s" $uuid <br /> $request ").as("text/html")
   }
 
-  def dummy2(ref: String): Action[AnyContent] = Action {
+  /**
+    * Demo endpoint for work-item-repo which stores work item and immediately processes it.
+    * @return
+    */
+  def storeAndProcessNow(): Action[AnyContent] = Action {
 
-    val request = Json.parse(fileTransmissionRequestJsonString(ref)).as[FileTransmission]
+    val request = Json.parse(fileTransmissionRequestJsonString(UUID.randomUUID().toString)).as[FileTransmission]
     val uuid: UUID = UUID.randomUUID()
 
-    businessService.callWorkItemService(request)(new HasConversationId {
+    val res = businessService.storeWorkItemAndProcessNow(request)(new HasConversationId {
       override val conversationId: ConversationId = ConversationId(uuid)
     })
 
-    Ok(s"conversationId=$uuid <br /> $request ").as("text/html")
+    Ok(s" $uuid <br /> $request ").as("text/html")
   }
 
   private def fileTransmissionRequestJsonString(fileRef: String) = s"""{
@@ -143,7 +151,7 @@ class BatchFileUploadUpscanNotificationController @Inject()(notificationService:
                                                         |    "reference" : "$fileRef",
                                                         |    "name" : "someFileN.ame",
                                                         |    "mimeType" : "application/pdf",
-                                                        |    "checkSum" : "asdrfgvbhujk13579",
+                                                        |    "checksum" : "asdrfgvbhujk13579",
                                                         |    "location" : "https:/foo.com/location",
                                                         |    "sequenceNumber" : 1,
                                                         |    "size" : 1

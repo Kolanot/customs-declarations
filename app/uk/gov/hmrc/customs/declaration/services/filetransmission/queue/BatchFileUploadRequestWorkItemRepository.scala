@@ -36,19 +36,17 @@ class TransmissionRequestWorkItemRepository @Inject()(
     extends WorkItemRepository[FileTransmissionEnvelope, BSONObjectID](
       collectionName = "transmission-request-envelopes",
       mongo = mongoComponent.mongoConnector.db,
-      itemFormat =
-        WorkItemFormat.workItemMongoFormat[FileTransmissionEnvelope]
-    ) {
+      itemFormat = WorkItemFormat.workItemMongoFormat[FileTransmissionEnvelope]) {
 
   override def now: DateTime = clock.nowAsJoda
 
-  override def inProgressRetryAfterProperty: String =
-    ??? // we don't use this, we override inProgressRetryAfter instead
+  //we don't use this, we override inProgressRetryAfter instead
+  override def inProgressRetryAfterProperty: String = ???
 
-  override lazy val inProgressRetryAfter: Duration =
-    Duration.standardMinutes(5) //TODO MC hardcoded, but not too relevant anyway for now; if you are looking for delay between retries nextAvailabilityTime in work item service is your guy
+  //TODO MC hardcoded, but not too relevant anyway for now; if you are looking for delay between retries nextAvailabilityTime in work item service is your guy
+  override lazy val inProgressRetryAfter: Duration = Duration.standardMinutes(5)
 
-  // if an item is in "inProgress" state for longer than inProgressRetryAfter, another attempt will be made even though previous one didn't fail yet
+  //if an item is in "inProgress" state for longer than inProgressRetryAfter, another attempt will be made even though previous one didn't fail yet
 
   override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
     val receivedAt = "modifiedDetails.createdAt"

@@ -27,6 +27,6 @@ POST        /arrival-notification         @uk.gov.hmrc.customs.declaration.contr
 
 GET         /status-request/mrn/:mrn      @uk.gov.hmrc.customs.declaration.controllers.DeclarationStatusController.get(mrn)
 
-GET        /dummy                  @uk.gov.hmrc.customs.declaration.controllers.BatchFileUploadUpscanNotificationController.dummy()
+GET        /storeAndProcessLater          @uk.gov.hmrc.customs.declaration.controllers.BatchFileUploadUpscanNotificationController.storeAndProcessLater()
 
-GET        /dummy/:ref                  @uk.gov.hmrc.customs.declaration.controllers.BatchFileUploadUpscanNotificationController.dummy2(ref)
+GET        /storeAndProcessNow            @uk.gov.hmrc.customs.declaration.controllers.BatchFileUploadUpscanNotificationController.storeAndProcessNow()

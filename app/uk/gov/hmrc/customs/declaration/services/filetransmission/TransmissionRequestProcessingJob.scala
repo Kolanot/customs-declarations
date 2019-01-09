@@ -25,13 +25,11 @@ import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class TransmissionRequestProcessingJob @Inject()(
-                                                  connector: FileTransmissionConnector,
-                                                  logger: CdsLogger)(implicit ec: ExecutionContext)
+class TransmissionRequestProcessingJob @Inject()(connector: FileTransmissionConnector,
+                                                 logger: CdsLogger)(implicit ec: ExecutionContext)
     extends QueueJob {
 
-  override def process(item: FileTransmissionEnvelope,
-                       canRetry: Boolean): Future[ProcessingResult] = {
+  override def process(item: FileTransmissionEnvelope, canRetry: Boolean): Future[ProcessingResult] = {
     implicit val hc = HeaderCarrier()
 
     for (result <- connector.send(item.request)) yield {
@@ -40,9 +38,7 @@ class TransmissionRequestProcessingJob @Inject()(
           logger.info(s"Request ${item.request} processed successfully")
           ProcessingSuccessful
         case FileTransmissionRequestFatalError(error) =>
-          logger.warn(
-            s"Processing request ${item.request} failed - non recoverable error",
-            error)
+          logger.warn(s"Processing request ${item.request} failed - non recoverable error",error)
           ProcessingFailedDoNotRetry(error)
         case FileTransmissionRequestError(error) if canRetry =>
           logger.warn(s"Processing request ${item.request} failed", error)
@@ -50,10 +46,7 @@ class TransmissionRequestProcessingJob @Inject()(
         case FileTransmissionRequestError(error) =>
           logger.warn(s"Processing request ${item.request} failed", error)
           ProcessingFailedDoNotRetry(error)
-
-
       }
     }
-
   }
 }

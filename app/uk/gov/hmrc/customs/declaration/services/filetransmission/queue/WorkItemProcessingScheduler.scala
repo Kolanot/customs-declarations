@@ -26,26 +26,23 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.util.{Failure, Success}
 
-class WorkItemProcessingScheduler @Inject()(queueProcessor: WorkItemService, configuration: DeclarationsConfigService)(
-  implicit actorSystem: ActorSystem,
-  applicationLifecycle: ApplicationLifecycle) {
+class WorkItemProcessingScheduler @Inject()(queueProcessor: WorkItemService,
+                                            configuration: DeclarationsConfigService)
+                                           (implicit actorSystem: ActorSystem,
+                                            applicationLifecycle: ApplicationLifecycle) {
 
-  val pollingInterval: FiniteDuration = FiniteDuration(1, MILLISECONDS) //TODO MC hardcoded
   //TODO MC should be 500, but for concurrency demo changed to 1
-
-  val retryAfterFailureInterval: FiniteDuration =
-    FiniteDuration(10000, MILLISECONDS) //TODO MC hardcoded
+  val pollingInterval: FiniteDuration = FiniteDuration(1, MILLISECONDS) //TODO MC hardcoded
+  val retryAfterFailureInterval: FiniteDuration = FiniteDuration(10000, MILLISECONDS) //TODO MC hardcoded
 
   case object Poll
 
   class ContinuousPollingActor extends Actor {
 
     import context.dispatcher
-
     val log = Logging(context.system, this)
 
     override def receive: Receive = {
-
       case Poll =>
         queueProcessor.processOne() andThen {
           case Success(true) =>
@@ -65,12 +62,10 @@ class WorkItemProcessingScheduler @Inject()(queueProcessor: WorkItemService, con
 
   pollingActor ! Poll
 
-  def shutDown(): Unit =
-    pollingActor ! PoisonPill
+  def shutDown(): Unit = pollingActor ! PoisonPill
 
   applicationLifecycle.addStopHook { () =>
     shutDown()
     Future.successful(())
   }
-
 }

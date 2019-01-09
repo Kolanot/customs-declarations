@@ -22,11 +22,14 @@ import cats.data.OptionT
 import cats.implicits._
 import javax.inject.Inject
 import org.joda.time.{DateTime, Duration}
+import uk.gov.hmrc.customs.declaration.logging.DeclarationsLogger
 import uk.gov.hmrc.customs.declaration.model.FileTransmissionEnvelope
 import uk.gov.hmrc.customs.declaration.services.filetransmission.util.JodaTimeConverters._
 import uk.gov.hmrc.workitem._
+import uk.gov.hmrc.workitem.InProgress
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 sealed trait ProcessingResult
 case object ProcessingSuccessful extends ProcessingResult
@@ -34,24 +37,43 @@ case class ProcessingFailed(error: Throwable) extends ProcessingResult
 case class ProcessingFailedDoNotRetry(error: Throwable) extends ProcessingResult
 
 trait QueueJob {
-  def process(item: FileTransmissionEnvelope,
-              canRetry: Boolean): Future[ProcessingResult]
+  def process(item: FileTransmissionEnvelope, canRetry: Boolean): Future[ProcessingResult]
 }
 
 trait WorkItemService {
   def enqueue(request: FileTransmissionEnvelope): Future[Unit]
 
   def processOne(): Future[Boolean]
+
+  def enqueueAndProcess(request: FileTransmissionEnvelope): Future[Unit]
 }
 
 class MongoBackedWorkItemService @Inject()(
     repository: TransmissionRequestWorkItemRepository,
     queueJob: QueueJob,
-    clock: Clock)(implicit ec: ExecutionContext)
+    clock: Clock,
+    logger: DeclarationsLogger)(implicit ec: ExecutionContext)
     extends WorkItemService {
 
-  def enqueue(request: FileTransmissionEnvelope): Future[Unit] =
-    repository.pushNew(request, now()).map(_ => ())
+  def enqueue(request: FileTransmissionEnvelope): Future[Unit] = {
+    repository.pushNew(request, now()).onComplete {
+      case Success(workItem) => logger.debugWithoutRequestContext(s"POC => enqueuing item for later processing with id: ${workItem.id.stringify}")
+      case Failure(exception) => logger.debugWithoutRequestContext(s"Failed store work item due to: ${exception.getMessage}")
+    }
+    Future.successful(())
+  }
+
+  private def inProgress(item: FileTransmissionEnvelope): ProcessingStatus = InProgress
+  def enqueueAndProcess(request: FileTransmissionEnvelope): Future[Unit] = {
+
+    logger.debugWithoutRequestContext(s"POC => enqueuing work item with status ${InProgress.name} for synchronous processing: $request")
+    val futureItem = repository.pushNew(request, now(), inProgress _)
+    futureItem.onComplete {
+      case Success(workItem) => processWorkItem(workItem)
+      case Failure(exception) => logger.debugWithoutRequestContext(s"Failed store work item due to: ${exception.getMessage}")
+    }
+    Future.successful(())
+  }
 
   def processOne(): Future[Boolean] = {
 
@@ -59,9 +81,12 @@ class MongoBackedWorkItemService @Inject()(
     val availableBefore = now()
 
     val result: OptionT[Future, Unit] = for {
-      firstOutstandingItem <- OptionT(
-        repository.pullOutstanding(failedBefore, availableBefore))
-      _ <- OptionT.liftF(processWorkItem(firstOutstandingItem))
+      firstOutstandingItem <-
+        OptionT(repository.pullOutstanding(failedBefore, availableBefore))
+      _ <- {
+        logger.debugWithoutRequestContext(s"POC => dequeued work item with id: ${firstOutstandingItem.id.stringify}")
+        OptionT.liftF(processWorkItem(firstOutstandingItem))
+      }
     } yield ()
 
     val somethingHasBeenProcessed = result.value.map(_.isDefined)
@@ -69,21 +94,24 @@ class MongoBackedWorkItemService @Inject()(
     somethingHasBeenProcessed
   }
 
-  private def processWorkItem(
-      workItem: WorkItem[FileTransmissionEnvelope]): Future[Unit] = {
+  private def processWorkItem(workItem: WorkItem[FileTransmissionEnvelope]): Future[Unit] = {
+    logger.debugWithoutRequestContext(s"POC => processing work item with id: ${workItem.id.stringify}")
     val request = workItem.item
 
-    val nextRetryTime: DateTime = nextAvailabilityTime(workItem)
-    val canRetry = nextRetryTime < timeToGiveUp(workItem)
+    val nextRetryTime: DateTime = nextAvailabilityTime(workItem) //adds 2s
+    val canRetry = nextRetryTime < timeToGiveUp(workItem) //adds 4h
 
     for (processingResult <- queueJob.process(request, canRetry)) yield {
       processingResult match {
         case ProcessingSuccessful =>
           repository.complete(workItem.id, Succeeded)
+          logger.debugWithoutRequestContext(s"POC => marking as complete work item with id: ${workItem.id.stringify}")
         case ProcessingFailed(_) =>
           repository.markAs(workItem.id, Failed, Some(nextRetryTime))
+          logger.debugWithoutRequestContext(s"POC => marking as failed work item with id: ${workItem.id.stringify}")
         case ProcessingFailedDoNotRetry(_) =>
           repository.markAs(workItem.id, PermanentlyFailed, None)
+          logger.debugWithoutRequestContext(s"POC => marking as permanently failed work item with id: ${workItem.id.stringify}")
       }
     }
   }
@@ -91,24 +119,13 @@ class MongoBackedWorkItemService @Inject()(
   private def now(): DateTime = clock.nowAsJoda
 
   private def nextAvailabilityTime[T](workItem: WorkItem[T]): DateTime = {
-
     //TODO MC use akka predefined strategies
-
-    val multiplier = Math.pow(2, workItem.failureCount).toInt
-
-//    val delay = Duration.standardSeconds(1) * multiplier //TODO MC hardcoded
     val delay = Duration.standardSeconds(2) //TODO MC hardcoded
-
     now() + delay
   }
 
-  private def timeToGiveUp(
-      workItem: WorkItem[FileTransmissionEnvelope]): DateTime = {
-
+  private def timeToGiveUp(workItem: WorkItem[FileTransmissionEnvelope]): DateTime = {
     val deliveryWindowDuration = Duration.standardHours(4) //TODO MC hardcoded
-//      workItem.item.request.deliveryWindowDuration
-//        .getOrElse(configuration.defaultDeliveryWindowDuration)
-
     workItem.receivedAt + deliveryWindowDuration
   }
 
