@@ -23,7 +23,8 @@ import org.joda.time.{DateTime, Duration}
 import play.api.libs.functional.syntax.{unlift, _}
 import play.api.libs.json.{Format, Reads, __}
 import play.modules.reactivemongo.ReactiveMongoComponent
-import reactivemongo.bson.BSONObjectID
+import reactivemongo.api.indexes.{Index, IndexType}
+import reactivemongo.bson.{BSONDocument, BSONLong, BSONObjectID}
 import reactivemongo.play.json.ImplicitBSONHandlers._
 import uk.gov.hmrc.customs.declaration.model.FileTransmissionEnvelope
 import uk.gov.hmrc.customs.declaration.services.filetransmission.util.JodaTimeConverters._
@@ -47,6 +48,15 @@ class TransmissionRequestWorkItemRepository @Inject()(
   override lazy val inProgressRetryAfter: Duration = Duration.standardMinutes(5)
 
   //if an item is in "inProgress" state for longer than inProgressRetryAfter, another attempt will be made even though previous one didn't fail yet
+
+  override def indexes: Seq[Index] = super.indexes ++ Seq(
+    Index(
+      key = Seq("modifiedDetails.receivedAt" -> IndexType.Descending),
+      name = Some("receivedAt-Index"),
+      unique = false,
+      options = BSONDocument("expireAfterSeconds" -> BSONLong(1209600))
+    )
+  )
 
   override def workItemFields: WorkItemFieldNames = new WorkItemFieldNames {
     val receivedAt = "modifiedDetails.createdAt"
