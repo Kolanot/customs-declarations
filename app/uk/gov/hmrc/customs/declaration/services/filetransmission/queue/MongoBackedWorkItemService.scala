@@ -77,6 +77,7 @@ class MongoBackedWorkItemService @Inject()(
 
   def processOne(): Future[Boolean] = {
 
+    logger.debugWithoutRequestContext(s"polling....")
     val failedBefore = now() //we don't use this
     val availableBefore = now()
 

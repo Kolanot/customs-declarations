@@ -8,7 +8,7 @@ object AppDependencies {
   private val mockitoVersion = "2.22.0"
   private val pegdownVersion = "1.6.0"
   private val wireMockVersion = "2.18.0"
-  private val customsApiCommonVersion = "1.36.0"
+  private val customsApiCommonVersion = "1.28.0"
   private val circuitBreakerVersion = "3.2.0"
   private val playReactivemongoVersion = "6.2.0"
   private val reactivemongoTestVersion = "3.1.0"
@@ -37,4 +37,6 @@ object AppDependencies {
   val reactiveMongoTest = "uk.gov.hmrc" %% "reactivemongo-test" % reactivemongoTestVersion % testScope
   
   val workItemRepo = "uk.gov.hmrc" %% "work-item-repo" % "5.2.0"
+
+  val cats = "org.typelevel" %% "cats-core" % "1.0.1" //TODO MC remove and translate code to scalaz
 }
