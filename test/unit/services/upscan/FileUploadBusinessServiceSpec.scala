@@ -30,7 +30,7 @@ import uk.gov.hmrc.customs.declaration.logging.DeclarationsLogger
 import uk.gov.hmrc.customs.declaration.model.actionbuilders.{ValidatedFileUploadPayloadRequest, ValidatedPayloadRequest}
 import uk.gov.hmrc.customs.declaration.model.upscan.FileUploadMetadata
 import uk.gov.hmrc.customs.declaration.model.{UpscanInitiateResponsePayload, _}
-import uk.gov.hmrc.customs.declaration.repo.FileUploadMetadataRepo
+import uk.gov.hmrc.customs.declaration.repo.{FileUploadMetadataRepo, RetryFileUploadMetadataWorkItemRepo}
 import uk.gov.hmrc.customs.declaration.services.upscan.FileUploadBusinessService
 import uk.gov.hmrc.customs.declaration.services.{DeclarationsConfigService, UuidService}
 import uk.gov.hmrc.http.HeaderCarrier
@@ -47,6 +47,7 @@ class FileUploadBusinessServiceSpec extends UnitSpec with MockitoSugar {
 
   trait SetUp {
     protected val mockFileUploadMetadataRepo: FileUploadMetadataRepo = mock[FileUploadMetadataRepo]
+    protected val mockRetryFileUploadMetadataWorkItemRepo: RetryFileUploadMetadataWorkItemRepo = mock[RetryFileUploadMetadataWorkItemRepo]
     protected val mockLogger: DeclarationsLogger = mock[DeclarationsLogger]
     protected val mockApiSubscriptionFieldsConnector: ApiSubscriptionFieldsConnector = mock[ApiSubscriptionFieldsConnector]
     protected val mockUpscanInitiateConnector: UpscanInitiateConnector = mock[UpscanInitiateConnector]
@@ -56,7 +57,7 @@ class FileUploadBusinessServiceSpec extends UnitSpec with MockitoSugar {
     protected val mockUuidService = mock[UuidService]
 
     protected lazy val service = new FileUploadBusinessService(mockUpscanInitiateConnector,
-      mockFileUploadMetadataRepo, mockUuidService, mockLogger, mockApiSubscriptionFieldsConnector, mockConfiguration)
+      mockFileUploadMetadataRepo, mockRetryFileUploadMetadataWorkItemRepo, mockUuidService, mockLogger, mockApiSubscriptionFieldsConnector, mockConfiguration)
 
     protected val xmlResponse =
       <FileUploadResponse xmlns="hmrc:fileupload">

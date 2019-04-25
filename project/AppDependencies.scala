@@ -9,7 +9,7 @@ object AppDependencies {
   private val wireMockVersion = "2.22.0"
   private val customsApiCommonVersion = "1.37.0"
   private val circuitBreakerVersion = "3.3.0"
-  private val simpleReactiveMongoVersion = "7.16.0-play-25"
+  private val workItemRepoVersion = "6.6.0-play-25"
   private val reactiveMongoTestVersion = "4.10.0-play-25"
   private val testScope = "test,it"
 
@@ -29,7 +29,7 @@ object AppDependencies {
 
   val circuitBreaker = "uk.gov.hmrc" %% "reactive-circuit-breaker" % circuitBreakerVersion
 
-  val simpleReactiveMongo = "uk.gov.hmrc" %% "simple-reactivemongo" % simpleReactiveMongoVersion
+  val workItemRepo = "uk.gov.hmrc" %% "work-item-repo" % workItemRepoVersion
 
   val reactiveMongoTest = "uk.gov.hmrc" %% "reactivemongo-test" % reactiveMongoTestVersion % testScope
 

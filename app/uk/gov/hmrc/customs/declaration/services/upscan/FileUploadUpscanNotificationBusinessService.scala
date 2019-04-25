@@ -23,19 +23,29 @@ import uk.gov.hmrc.customs.declaration.connectors.filetransmission.FileTransmiss
 import uk.gov.hmrc.customs.declaration.logging.DeclarationsLogger
 import uk.gov.hmrc.customs.declaration.model._
 import uk.gov.hmrc.customs.declaration.model.actionbuilders.HasConversationId
-import uk.gov.hmrc.customs.declaration.model.filetransmission._
+import uk.gov.hmrc.customs.declaration.model.filetransmission.{FileTransmission, _}
 import uk.gov.hmrc.customs.declaration.model.upscan._
-import uk.gov.hmrc.customs.declaration.repo.FileUploadMetadataRepo
+import uk.gov.hmrc.customs.declaration.repo.{FileUploadMetadataRepo, RetryFileUploadMetadataWorkItemRepo}
 import uk.gov.hmrc.customs.declaration.services.DeclarationsConfigService
+import uk.gov.hmrc.workitem.ToDo
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class FileUploadUpscanNotificationBusinessService @Inject()(repo: FileUploadMetadataRepo,
+                                                            retryFileUploadMetadataWorkItemRepo: RetryFileUploadMetadataWorkItemRepo,
                                                             connector: FileTransmissionConnector,
                                                             config: DeclarationsConfigService,
                                                             logger: DeclarationsLogger)
                                                            (implicit ec: ExecutionContext) {
+
+  def persist(csId: SubscriptionFieldsId, ready: UploadedReadyCallbackBody)(implicit r: HasConversationId): Future[Unit] = {
+    //retry - single file update. Not sending to file-transmission service immediately. Instead, waiting for poller to pick up.
+    retryFileUploadMetadataWorkItemRepo.update(csId,
+      ready.reference,
+      CallbackFields(ready.uploadDetails.fileName, ready.uploadDetails.fileMimeType, ready.uploadDetails.checksum, ready.uploadDetails.uploadTimestamp, ready.downloadUrl), ToDo)
+    Future.successful(())
+  }
 
   def persistAndCallFileTransmission(csId: SubscriptionFieldsId, ready: UploadedReadyCallbackBody)(implicit r: HasConversationId): Future[Unit] = {
     repo.update(
@@ -58,7 +68,7 @@ class FileUploadUpscanNotificationBusinessService @Inject()(repo: FileUploadMeta
               logger.info(s"successfully called file transmission service $fileTransmission")
               ()
             }
-      }
+        }
     }
   }
 

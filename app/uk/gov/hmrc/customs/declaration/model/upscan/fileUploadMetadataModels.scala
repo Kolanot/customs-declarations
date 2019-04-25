@@ -95,3 +95,23 @@ object FileUploadMetadata {
   implicit val format = Json.format[FileUploadMetadata]
   implicit val fileUploadMetadataJF = ReactiveMongoFormats.mongoEntity(Json.format[FileUploadMetadata])
 }
+
+case class RetryFileUploadMetadataWorkItem(
+  fileReference: FileReference, // can be used as UNIQUE KEY, upscan-initiate
+  csId: SubscriptionFieldsId,
+  eori: Eori,
+  declarationId: DeclarationId,
+  inboundLocation: URL, // upscan-initiate
+  batchId: BatchId,
+  fileCount: Int,
+  sequenceNumber: FileSequenceNo, // derived from user request
+  size: Int, // assumption - it appears to be mandatory but is ignored
+  documentType: Option[DocumentType], // user request
+  maybeCallbackFields: Option[CallbackFields] // upscan-notify
+)
+object RetryFileUploadMetadataWorkItem {
+  implicit val urlFormat = HttpUrlFormat
+  implicit val dateFormats = ReactiveMongoFormats.dateTimeFormats
+  implicit val format = Json.format[RetryFileUploadMetadataWorkItem]
+  implicit val retryileUploadMetadataJF = ReactiveMongoFormats.mongoEntity(Json.format[RetryFileUploadMetadataWorkItem])
+}

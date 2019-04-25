@@ -28,10 +28,11 @@ import uk.gov.hmrc.customs.declaration.logging.DeclarationsLogger
 import uk.gov.hmrc.customs.declaration.model._
 import uk.gov.hmrc.customs.declaration.model.actionbuilders.ActionBuilderModelHelper._
 import uk.gov.hmrc.customs.declaration.model.actionbuilders.ValidatedFileUploadPayloadRequest
-import uk.gov.hmrc.customs.declaration.model.upscan.{BatchFile, BatchId, FileReference, FileUploadMetadata}
-import uk.gov.hmrc.customs.declaration.repo.FileUploadMetadataRepo
+import uk.gov.hmrc.customs.declaration.model.upscan._
+import uk.gov.hmrc.customs.declaration.repo.{FileUploadMetadataRepo, RetryFileUploadMetadataWorkItemRepo}
 import uk.gov.hmrc.customs.declaration.services.{DeclarationsConfigService, UuidService}
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.workitem.{Deferred, ToDo}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Left
@@ -41,6 +42,7 @@ import scala.xml._
 @Singleton
 class FileUploadBusinessService @Inject()(upscanInitiateConnector: UpscanInitiateConnector,
                                           fileUploadMetadataRepo: FileUploadMetadataRepo,
+                                          retryFileUploadMetadataWorkItemRepo: RetryFileUploadMetadataWorkItemRepo,
                                           uuidService: UuidService,
                                           logger: DeclarationsLogger,
                                           apiSubFieldsConnector: ApiSubscriptionFieldsConnector,
@@ -103,9 +105,18 @@ class FileUploadBusinessService @Inject()(upscanInitiateConnector: UpscanInitiat
         request.fileUploadRequest.files(index).fileSequenceNo, 1, request.fileUploadRequest.files(index).maybeDocumentType)
     }
 
+    //retry - single file save
+    //re-using batchFiles for spike purposes only.
+    val batchId = BatchId(uuidService.uuid())
+    val eori = extractEori(request.authorisedAs)
+    batchFiles.foreach { file =>
+      val fileWorkItem = RetryFileUploadMetadataWorkItem(file.reference, sfId, eori, request.fileUploadRequest.declarationId,
+          file.inboundLocation, batchId, request.fileUploadRequest.fileGroupSize.value, file.sequenceNumber, file.size, file.documentType, None)
+      retryFileUploadMetadataWorkItemRepo.saveWithStatus(fileWorkItem, Deferred)
+    }
+
     val metadata = FileUploadMetadata(request.fileUploadRequest.declarationId, extractEori(request.authorisedAs), sfId,
       BatchId(uuidService.uuid()), request.fileUploadRequest.fileGroupSize.value, batchFiles)
-
     fileUploadMetadataRepo.create(metadata)
   }
 

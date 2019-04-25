@@ -56,7 +56,7 @@ class FileUploadUpscanNotificationController @Inject()(notificationService: File
                 callbackBody match {
                   case ready: UploadedReadyCallbackBody =>
                     cdsLogger.debug(s"Valid JSON request received with READY status. Body: ${Json.prettyPrint(js)} headers: ${request.headers}")
-                    businessService.persistAndCallFileTransmission(clientSubscriptionId, ready).map{_ =>
+                    businessService.persist(clientSubscriptionId, ready).map{_ =>
                         Results.NoContent
                     }.recover{
                       case e: Throwable =>

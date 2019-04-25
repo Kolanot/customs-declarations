@@ -28,6 +28,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpException, HttpResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 @Singleton
 class FileTransmissionConnector @Inject()(http: HttpClient,
@@ -56,6 +57,18 @@ class FileTransmissionConnector @Inject()(http: HttpClient,
           logger.error(s"Call to file transmission failed. url=$url")
           Future.failed(e)
       }
+  }
+
+  def sendForPoller[A](request: FileTransmission): Future[Unit] = {
+    val url = config.fileUploadConfig.fileTransmissionBaseUrl
+    logger.debugWithoutRequestContext(s"Sending request to file transmission service. Url: $url Payload: ${Json.prettyPrint(Json.toJson(request))}")
+    http.POST[FileTransmission, HttpResponse](url, request).map { _ =>
+      logger.debugWithoutRequestContext(s"[conversationId=${request.file.reference}]: file transmission request sent successfully")
+    }.recoverWith {
+      case NonFatal(e) =>
+        logger.errorWithoutRequestContext(s"failed to send request to file-transmission service due to ${e.getMessage}")
+        Future.failed(e)
+    }
   }
 
 }

@@ -29,7 +29,7 @@ import uk.gov.hmrc.customs.declaration.model._
 import uk.gov.hmrc.customs.declaration.model.actionbuilders.HasConversationId
 import uk.gov.hmrc.customs.declaration.model.filetransmission._
 import uk.gov.hmrc.customs.declaration.model.upscan._
-import uk.gov.hmrc.customs.declaration.repo.FileUploadMetadataRepo
+import uk.gov.hmrc.customs.declaration.repo.{FileUploadMetadataRepo, RetryFileUploadMetadataWorkItemRepo}
 import uk.gov.hmrc.customs.declaration.services.DeclarationsConfigService
 import uk.gov.hmrc.customs.declaration.services.upscan.FileUploadUpscanNotificationBusinessService
 import uk.gov.hmrc.play.test.UnitSpec
@@ -68,10 +68,11 @@ class FileUploadUpscanNotificationBusinessServiceSpec extends UnitSpec with Mock
 
   trait SetUp {
     val mockRepo = mock[FileUploadMetadataRepo]
+    val mockRetryFileUploadMetadataWorkItemRepo: RetryFileUploadMetadataWorkItemRepo = mock[RetryFileUploadMetadataWorkItemRepo]
     val mockConnector = mock[FileTransmissionConnector]
     val mockConfig = mock[DeclarationsConfigService]
     val mockLogger = mock[DeclarationsLogger]
-    val service = new FileUploadUpscanNotificationBusinessService(mockRepo, mockConnector, mockConfig, mockLogger)
+    val service = new FileUploadUpscanNotificationBusinessService(mockRepo, mockRetryFileUploadMetadataWorkItemRepo, mockConnector, mockConfig, mockLogger)
 
     when(mockConfig.fileUploadConfig).thenReturn(fileUploadConfig)
   }
